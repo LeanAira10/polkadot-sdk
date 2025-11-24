@@ -3721,6 +3721,14 @@ impl<T: Config> Pallet<T> {
 		if pre_frozen_balance > min_balance {
 			// Transfer excess back to depositor.
 			let excess = pre_frozen_balance.saturating_sub(min_balance);
+
+			// Ensure the caller is the depositor or the root.
+			ensure!(
+				who.clone() == bonded_pool.roles.depositor ||
+					Some(who.clone()) == bonded_pool.roles.root,
+				Error::<T>::DoesNotHavePermission
+			);
+
 			T::Currency::transfer(reward_acc, &who, excess, Preservation::Preserve)?;
 			Self::deposit_event(Event::<T>::MinBalanceExcessAdjusted {
 				pool_id: pool,

@@ -420,7 +420,7 @@ mod reward_pool {
 			// clear events
 			pool_events_since_last_call();
 
-			// Then: Anyone can permissionlessly can adjust ED deposit.
+			// Then: Anyone can permissionlessly adjust ED deposit upwards.
 
 			// make sure caller has enough funds..
 			assert_ok!(Currency::mint_into(&99, 100));
@@ -445,17 +445,77 @@ mod reward_pool {
 			// When: ED is decreased and reward account has excess ED frozen
 			ExistentialDeposit::set(5);
 
-			// And:: adjust ED deposit is called
-			let pre_balance = Currency::free_balance(&100);
-			assert_ok!(Pools::adjust_pool_deposit(RuntimeOrigin::signed(100), 1));
+			let bonded_pool = BondedPool::<Runtime>::get(1).unwrap();
+			let owner = bonded_pool.roles.depositor;
 
-			// Then: excess ED is claimed by the caller
-			assert_eq!(Currency::free_balance(&100), pre_balance + 45);
+			assert_eq!(owner, 10);
+
+			// And:: adjust ED deposit is called
+			let pre_balance = Currency::free_balance(&owner);
+			assert_ok!(Pools::adjust_pool_deposit(RuntimeOrigin::signed(owner), 1));
+
+			// Then: excess ED is claimed by the pool depositor
+			assert_eq!(Currency::free_balance(&owner), pre_balance + 45);
 
 			assert_eq!(
 				pool_events_since_last_call(),
 				vec![Event::MinBalanceExcessAdjusted { pool_id: 1, amount: 45 },]
 			);
+		});
+	}
+
+	#[test]
+	fn pool_owner_can_adjust_deposit() {
+		ExtBuilder::default().max_members_per_pool(Some(5)).build_and_execute(|| {
+			// Set an initial ED
+			ExistentialDeposit::set(5);
+
+			// 7 joins the pool
+			Currency::set_balance(&7, 100);
+			assert_ok!(Pools::join(RuntimeOrigin::signed(7), 50, 1));
+
+			// Pool some rewards and check the imbalance
+			deposit_rewards(100);
+			assert_eq!(reward_imbalance(1), Surplus(1));
+
+			// Increase ED
+			ExistentialDeposit::set(50);
+
+			// Anyone can adjust the pool deposit upwards if they have enough funds
+			Currency::set_balance(&99, 100);
+			assert_ok!(Pools::adjust_pool_deposit(RuntimeOrigin::signed(99), 1));
+
+			// The balance decreases by the ED difference
+			assert_eq!(Currency::free_balance(&99), 55);
+
+			let bonded_pool = BondedPool::<Runtime>::get(1).unwrap();
+			let owner = bonded_pool.roles.depositor;
+			let root = bonded_pool.roles.root;
+
+			assert_eq!(owner, 10);
+			assert_eq!(root, Some(900));
+
+			// Adjust the ED downards
+			ExistentialDeposit::set(25);
+
+			// Only the pool owner and the root can adjust deposits downards
+			assert_err!(
+				Pools::adjust_pool_deposit(RuntimeOrigin::signed(99), 1),
+				Error::<T>::DoesNotHavePermission
+			);
+
+			assert_ok!(Pools::adjust_pool_deposit(RuntimeOrigin::signed(owner), 1));
+			assert_eq!(reward_imbalance(1), Surplus(1));
+
+			ExistentialDeposit::set(10);
+			assert_err!(
+				Pools::adjust_pool_deposit(RuntimeOrigin::signed(7), 1),
+				Error::<T>::DoesNotHavePermission
+			);
+
+			// Root can also adjust deposit
+			assert_ok!(Pools::adjust_pool_deposit(RuntimeOrigin::signed(root.unwrap()), 1));
+			assert_eq!(reward_imbalance(1), Surplus(1));
 		});
 	}
 
