@@ -72,6 +72,8 @@ pub enum EnactmentAction<Block: BlockT> {
 	HandleEnactment(TreeRoute<Block>),
 	/// Enactment phase of maintenance shall be skipped
 	HandleFinalization,
+	/// Comment
+	HandleRevert(TreeRoute<Block>),
 }
 
 impl<Block> EnactmentState<Block>
@@ -103,6 +105,28 @@ where
 	{
 		let new_hash = event.hash();
 		let finalized = event.is_finalized();
+
+		let is_revert = if finalized {
+			match (hash_to_number(new_hash), hash_to_number(self.recent_finalized_block)) {
+				(Ok(Some(new_num)), Ok(Some(prev_num))) => new_num < prev_num,
+				_ => false,
+			}
+		} else {
+			false
+		};
+
+		// Handle revert case early
+		if is_revert {
+			trace!(
+				target: LOG_TARGET,
+				"Revert detected: finalized block {} < previous finalized {}",
+				new_hash, self.recent_finalized_block
+			);
+
+			let tree_route = tree_route(self.recent_best_block, new_hash)?;
+
+			return Ok(EnactmentAction::HandleRevert(tree_route));
+		}
 
 		// do not proceed with txpool maintain if block distance is too high
 		let skip_maintenance =
@@ -519,11 +543,11 @@ mod enactment_state_tests {
 		assert_es_eq(&es, d2(), d2());
 
 		let result = trigger_finalized(&mut es, a(), b2());
-		assert!(matches!(result, EnactmentAction::Skip));
+		assert!(matches!(result, EnactmentAction::HandleRevert { .. }));
 		assert_es_eq(&es, d2(), d2());
 
 		let result = trigger_finalized(&mut es, a(), b1());
-		assert!(matches!(result, EnactmentAction::Skip));
+		assert!(matches!(result, EnactmentAction::HandleRevert { .. }));
 		assert_es_eq(&es, d2(), d2());
 
 		let result = trigger_new_best_block(&mut es, a(), d2());
@@ -611,7 +635,7 @@ mod enactment_state_tests {
 		assert_es_eq(&es, e1(), e1());
 
 		let result = trigger_finalized(&mut es, e1(), b1());
-		assert!(matches!(result, EnactmentAction::Skip));
+		assert!(matches!(result, EnactmentAction::HandleRevert { .. }));
 		assert_es_eq(&es, e1(), e1());
 	}
 
@@ -697,5 +721,102 @@ mod enactment_state_tests {
 		let result = trigger_new_best_block(&mut es, b1(), x1());
 		assert!(matches!(result, EnactmentAction::HandleEnactment { .. }));
 		assert_es_eq(&es, x1(), b1());
+	}
+
+	#[test]
+	fn test_enactment_revert_basic() {
+		sp_tracing::try_init_simple();
+		let mut es = EnactmentState::new(e1().hash, e1().hash);
+
+		// Chain is at E1 (finalized), now revert to C1
+		let result = trigger_finalized(&mut es, e1(), c1());
+
+		// Should return HandleRevert with tree_route from E1 to C1
+		assert!(matches!(result, EnactmentAction::HandleRevert { .. }));
+		if let EnactmentAction::HandleRevert(tree_route) = result {
+			// Tree route should show retracted blocks: E1, D1
+			assert_eq!(tree_route.retracted().len(), 2);
+			assert_eq!(tree_route.retracted()[0].hash, e1().hash);
+			assert_eq!(tree_route.retracted()[1].hash, d1().hash);
+
+			assert_eq!(tree_route.common_block().hash, c1().hash);
+			assert_eq!(tree_route.enacted().len(), 0);
+		}
+
+		// State should NOT be updated yet (will be done by force_update in maintain)
+		assert_es_eq(&es, e1(), e1());
+	}
+
+	#[test]
+	fn test_enactment_revert_across_fork() {
+		sp_tracing::try_init_simple();
+		let mut es = EnactmentState::new(d2().hash, d2().hash);
+
+		//   B1-C1-D1-E1
+		//  /
+		// A
+		//  \
+		//   B2-C2-D2-E2
+
+		// Currently at D2, revert to B1 (different fork)
+		let result = trigger_finalized(&mut es, d2(), b1());
+		assert!(matches!(result, EnactmentAction::HandleRevert { .. }));
+
+		if let EnactmentAction::HandleRevert(tree_route) = result {
+			// Should retract: D2, C2, B2
+			assert_eq!(tree_route.retracted().len(), 3);
+			assert_eq!(tree_route.retracted()[0].hash, d2().hash);
+			assert_eq!(tree_route.retracted()[1].hash, c2().hash);
+			assert_eq!(tree_route.retracted()[2].hash, b2().hash);
+
+			// Common ancestor: A
+			assert_eq!(tree_route.common_block().hash, a().hash);
+
+			// Enacted: B1
+			assert_eq!(tree_route.enacted().len(), 1);
+			assert_eq!(tree_route.enacted()[0].hash, b1().hash);
+		}
+
+		assert_es_eq(&es, d2(), d2());
+	}
+
+	#[test]
+	fn test_enactment_revert_to_genesis() {
+		sp_tracing::try_init_simple();
+		let mut es = EnactmentState::new(c1().hash, c1().hash);
+
+		let result = trigger_finalized(&mut es, c1(), a());
+		assert!(matches!(result, EnactmentAction::HandleRevert { .. }));
+
+		if let EnactmentAction::HandleRevert(tree_route) = result {
+			// Should retract C1, B1
+			assert_eq!(tree_route.retracted().len(), 2);
+			// Common/target is A
+			assert_eq!(tree_route.common_block().hash, a().hash);
+			// No blocks enacted (just going back to A)
+			assert_eq!(tree_route.enacted().len(), 0);
+		}
+
+		assert_es_eq(&es, c1(), c1());
+	}
+
+	#[test]
+	fn test_enactment_revert_then_forward() {
+		sp_tracing::try_init_simple();
+		let mut es = EnactmentState::new(e1().hash, e1().hash);
+
+		// First revert from E1 to B1
+		let result = trigger_finalized(&mut es, e1(), b1());
+		assert!(matches!(result, EnactmentAction::HandleRevert { .. }));
+
+		// Simulate what maintain() would do: force_update
+		es.force_update(&ChainEvent::Finalized { hash: b1().hash, tree_route: Arc::from([]) });
+		es.force_update(&ChainEvent::NewBestBlock { hash: b1().hash, tree_route: None });
+		assert_es_eq(&es, b1(), b1());
+
+		// Now move forward normally
+		let result = trigger_new_best_block(&mut es, b1(), c1());
+		assert!(matches!(result, EnactmentAction::HandleEnactment { .. }));
+		assert_es_eq(&es, c1(), b1());
 	}
 }

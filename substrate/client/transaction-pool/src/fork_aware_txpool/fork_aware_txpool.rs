@@ -2007,6 +2007,10 @@ where
 				);
 				self.enactment_state.lock().force_update(&event);
 			},
+			Ok(EnactmentAction::HandleRevert(tree_route)) => {
+				debug!(target: LOG_TARGET, "Handling revert");
+				self.enactment_state.lock().force_update(&event);
+			},
 			Ok(EnactmentAction::Skip) => return,
 			Ok(EnactmentAction::HandleFinalization) => {
 				// todo [#5492]: in some cases handle_new_block is actually needed (new_num >
