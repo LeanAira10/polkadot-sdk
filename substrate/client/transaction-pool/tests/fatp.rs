@@ -2685,3 +2685,31 @@ fn fatp_tx_is_revalidated_by_mempool_revalidation() {
 	let xt0_events = block_on(xt0_watcher.collect::<Vec<_>>());
 	assert_eq!(xt0_events, vec![TransactionStatus::Ready, TransactionStatus::Invalid,]);
 }
+
+#[test]
+fn fatp_revert_remove_view() {
+	sp_tracing::try_init_simple();
+
+	let (pool, api, _) = pool();
+	let header01 = api.push_block(1, vec![], true);
+	let header02 = api.push_block(2, vec![], true);
+
+	let event01 = new_best_block_event(&pool, None, header01.hash());
+	block_on(pool.maintain(event01));
+
+	let event02 = new_best_block_event(&pool, Some(header01.hash()), header02.hash());
+	block_on(pool.maintain(event02));
+
+	assert!(pool.has_view(&header02.hash()));
+	assert_eq!(pool.active_views_count(), 1);
+
+	// Revert to header01
+	let tree_route = api.tree_route(header02.hash(), header01.hash()).unwrap();
+	let event =
+		ChainEvent::Revert { hash: header01.hash(), tree_route: Some(Arc::new(tree_route)) };
+
+	block_on(pool.maintain(event));
+
+	assert!(pool.has_view(&header01.hash()));
+	assert!(!pool.has_view(&header02.hash()));
+}

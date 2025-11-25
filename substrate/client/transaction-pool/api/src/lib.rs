@@ -389,13 +389,22 @@ pub enum ChainEvent<B: BlockT> {
 		/// Path from old finalized to new finalized parent.
 		tree_route: Arc<[B::Hash]>,
 	},
+	/// The chain has been reverted to a previous block.
+	Revert {
+		/// Hash of the new best block
+		hash: B::Hash,
+		/// Tree route from old best to new best parent that was calculated on import.
+		///
+		/// If `None`, no re-org happened on import.
+		tree_route: Arc<sp_blockchain::TreeRoute<B>>,
+	}
 }
 
 impl<B: BlockT> ChainEvent<B> {
 	/// Returns the block hash associated to the event.
 	pub fn hash(&self) -> B::Hash {
 		match self {
-			Self::NewBestBlock { hash, .. } | Self::Finalized { hash, .. } => *hash,
+			Self::NewBestBlock { hash, .. } | Self::Finalized { hash, .. }  | Self::Revert { hash, .. }=> *hash,
 		}
 	}
 

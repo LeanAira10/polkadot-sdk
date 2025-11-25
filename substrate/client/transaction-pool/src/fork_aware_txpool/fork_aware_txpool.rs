@@ -2007,7 +2007,12 @@ where
 				);
 				self.enactment_state.lock().force_update(&event);
 			},
-			Ok(EnactmentAction::Skip) => return,
+			Ok(EnactmentAction::Skip) => {
+				// Don't return early if this is a Revert event
+				if !matches!(event, ChainEvent::Revert { .. }) {
+					return;
+				}
+			},
 			Ok(EnactmentAction::HandleFinalization) => {
 				// todo [#5492]: in some cases handle_new_block is actually needed (new_num >
 				// tips_of_forks) let hash = event.hash();
@@ -2033,6 +2038,18 @@ where
 					?prev_finalized_block,
 					"on-finalized enacted"
 				);
+			},
+			ChainEvent::Revert { hash, ref tree_route } => {
+				debug!(target: LOG_TARGET, "Handling revert to block {hash:?}");
+
+				// Update enactment state to the reverted block
+				self.enactment_state.lock().force_update(&event);
+
+				// Resubmit transactions from retracted blocks (if tree_route present)
+				self.handle_new_block(tree_route).await;
+
+				// Cleanup and finalize at the reverted block
+				self.handle_finalized(hash, &[]).await;
 			},
 		}
 
