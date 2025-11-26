@@ -25,6 +25,7 @@ use async_trait::async_trait;
 use codec::Codec;
 use futures::Stream;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use sp_core::H256;
 use sp_core::offchain::TransactionPoolExt;
 use sp_runtime::traits::{Block as BlockT, Member};
 use std::{collections::HashMap, hash::Hash, marker::PhantomData, pin::Pin, sync::Arc};
@@ -397,6 +398,7 @@ pub enum ChainEvent<B: BlockT> {
 		///
 		/// If `None`, no re-org happened on import.
 		tree_route: Arc<sp_blockchain::TreeRoute<B>>,
+		transactions_to_remove: Arc<[B::Hash]>,
 	}
 }
 

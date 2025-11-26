@@ -370,7 +370,7 @@ where
 					};
 				},
 				DroppedReason::LimitsEnforced | DroppedReason::Invalid => {
-					view_store.remove_transaction_subtree(tx_hash, |_, _| {});
+					view_store.remove_transaction_subtree(tx_hash, |_, _| {}, true);
 				},
 			};
 
@@ -1951,10 +1951,13 @@ where
 				.listener
 				.transaction_dropped(DroppedTransaction::new_enforced_by_limts(*worst_hash));
 
-			self.view_store
-				.remove_transaction_subtree(*worst_hash, |listener, removed_tx_hash| {
+			self.view_store.remove_transaction_subtree(
+				*worst_hash,
+				|listener, removed_tx_hash| {
 					listener.limits_enforced(&removed_tx_hash);
-				});
+				},
+				true,
+			);
 		}
 
 		return Ok(insertion_info)
@@ -2039,16 +2042,35 @@ where
 					"on-finalized enacted"
 				);
 			},
-			ChainEvent::Revert { hash, ref tree_route } => {
+			ChainEvent::Revert { hash, ref tree_route, ref transactions_to_remove } => {
 				debug!(target: LOG_TARGET, "Handling revert to block {hash:?}");
 
-				// Update enactment state to the reverted block
+				// 1. Update enactment state
 				self.enactment_state.lock().force_update(&event);
 
-				// Resubmit transactions from retracted blocks (if tree_route present)
-				self.handle_new_block(tree_route).await;
+				// 2. Remove zombie views
+				let zombie_hashes: Vec<_> =
+					tree_route.retracted().iter().map(|hn| hn.hash).collect();
+				{
+					let mut active_views = self.view_store.active_views.write();
+					let mut inactive_views = self.view_store.inactive_views.write();
 
-				// Cleanup and finalize at the reverted block
+					for hash in &zombie_hashes {
+						active_views.remove(hash);
+						inactive_views.remove(hash);
+						self.view_store.listener.remove_view(*hash);
+						self.view_store.dropped_stream_controller.remove_view(*hash);
+					}
+				}
+
+				// 3. Clean up mempool and notification streams
+				if !transactions_to_remove.is_empty() {
+					self.mempool.remove_transactions(transactions_to_remove).await;
+					self.import_notification_sink.clean_notified_items(&transactions_to_remove);
+				}
+
+				self.handle_new_block(tree_route).await;
+				// 4. Finalize
 				self.handle_finalized(hash, &[]).await;
 			},
 		}

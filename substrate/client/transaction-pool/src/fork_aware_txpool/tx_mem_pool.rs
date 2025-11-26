@@ -693,7 +693,7 @@ where
 		for tx in &revalidated_invalid_hashes {
 			invalid_hashes_subtrees.extend(
 				view_store
-					.remove_transaction_subtree(*tx, |_, _| {})
+					.remove_transaction_subtree(*tx, |_, _| {}, true)
 					.into_iter()
 					.map(|tx| tx.hash),
 			);

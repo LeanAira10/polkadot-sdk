@@ -746,7 +746,7 @@ where
 
 		let mut removed = vec![];
 		for tx_hash in &remove_from_pool {
-			let removed_from_pool = self.remove_transaction_subtree(*tx_hash, |_, _| {});
+			let removed_from_pool = self.remove_transaction_subtree(*tx_hash, |_, _| {}, true);
 			removed_from_pool
 				.iter()
 				.find(|tx| tx.hash == *tx_hash)
@@ -911,6 +911,7 @@ where
 		&self,
 		xt_hash: ExtrinsicHash<ChainApi>,
 		listener_action: F,
+		ban: bool,
 	) -> Vec<TransactionFor<ChainApi>>
 	where
 		F: Fn(
@@ -936,7 +937,7 @@ where
 			.iter()
 			.chain(self.inactive_views.read().iter())
 			.filter(|(_, view)| view.is_imported(&xt_hash))
-			.flat_map(|(_, view)| view.remove_subtree(&[xt_hash], true, &listener_action))
+			.flat_map(|(_, view)| view.remove_subtree(&[xt_hash], ban, &listener_action))
 			.filter_map(|xt| seen.insert(xt.hash).then(|| xt.clone()))
 			.collect();
 
