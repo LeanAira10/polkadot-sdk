@@ -664,6 +664,48 @@ where
 		finalized_xts
 	}
 
+	pub(crate) fn handle_revert(&self, target_hash: Block::Hash, retracted_hashes: &[Block::Hash]) {
+		let mut dropped_views = vec![];
+		{
+			let mut active_views = self.active_views.write();
+			let mut inactive_views = self.inactive_views.write();
+			let mut most_recent = self.most_recent_view.write();
+
+			for hash in retracted_hashes {
+				if active_views.remove(hash).is_some() {
+					dropped_views.push(*hash);
+				}
+				if inactive_views.remove(hash).is_some() {
+					dropped_views.push(*hash);
+				}
+			}
+
+			// If most_recent_view pointed to a reverted block, update it to another
+			// active view. This ensures subsequent operations don't try to use a
+			// view that no longer has a valid backend state.
+			if let Some(ref view) = *most_recent {
+				if retracted_hashes.contains(&view.at.hash) {
+					*most_recent = active_views.values().next().cloned();
+				}
+			}
+
+			debug!(
+				target: LOG_TARGET,
+				?target_hash,
+				?dropped_views,
+				remaining_active = active_views.len(),
+				remaining_inactive = inactive_views.len(),
+				"handle_revert"
+			);
+		}
+
+		// Clean up listeners and controllers outside the lock to avoid potential deadlocks
+		for view in dropped_views {
+			self.listener.remove_view(view);
+			self.dropped_stream_controller.remove_view(view);
+		}
+	}
+
 	/// Terminates all the ongoing background views revalidations triggered at the end of maintain
 	/// process.
 	///

@@ -1847,6 +1847,45 @@ where
 		);
 	}
 
+	async fn handle_revert(
+		&self,
+		target_hash: Block::Hash,
+		retracted: &[HashAndNumber<Block>],
+		transactions_to_remove: &[ExtrinsicHash<ChainApi>],
+	) {
+		let start = Instant::now();
+		let retracted_hashes: Vec<_> = retracted.iter().map(|hn| hn.hash).collect();
+
+		debug!(
+			target: LOG_TARGET,
+			?target_hash,
+			retracted_count = retracted.len(),
+			transactions_to_remove_count = transactions_to_remove.len(),
+			"handle_revert"
+		);
+
+		// Remove views for retracted blocks from view store.
+		self.view_store.handle_revert(target_hash, &retracted_hashes);
+
+		// Remove transactions that were included in retracted blocks.
+		// These should NOT be resubmitted in the revert scenario.
+		self.mempool.remove_transactions(transactions_to_remove).await;
+		self.import_notification_sink.clean_notified_items(transactions_to_remove);
+
+		// Clean the included_transactions cache.
+		self.included_transactions
+			.lock()
+			.retain(|hn, _| !retracted_hashes.contains(&hn.hash));
+		debug!(
+			target: LOG_TARGET,
+			?target_hash,
+			active_views_count = self.active_views_count(),
+			inactive_views_count = self.inactive_views_count(),
+			duration = ?start.elapsed(),
+			"handle_revert complete"
+		);
+	}
+
 	/// Computes a hash of the provided transaction
 	fn tx_hash(&self, xt: &TransactionFor<Self>) -> TxHash<Self> {
 		self.api.hash_and_length(xt).0
@@ -2045,33 +2084,21 @@ where
 			ChainEvent::Revert { hash, ref tree_route, ref transactions_to_remove } => {
 				debug!(target: LOG_TARGET, "Handling revert to block {hash:?}");
 
-				// 1. Update enactment state
+				// Remove stale views and transactions bedore building a new state.
+				self.handle_revert(hash, tree_route.retracted(), transactions_to_remove).await;
+				// Force update the enactment state to reflect the new chain head.
 				self.enactment_state.lock().force_update(&event);
-
-				// 2. Remove zombie views
-				let zombie_hashes: Vec<_> =
-					tree_route.retracted().iter().map(|hn| hn.hash).collect();
-				{
-					let mut active_views = self.view_store.active_views.write();
-					let mut inactive_views = self.view_store.inactive_views.write();
-
-					for hash in &zombie_hashes {
-						active_views.remove(hash);
-						inactive_views.remove(hash);
-						self.view_store.listener.remove_view(*hash);
-						self.view_store.dropped_stream_controller.remove_view(*hash);
-					}
-				}
-
-				// 3. Clean up mempool and notification streams
-				if !transactions_to_remove.is_empty() {
-					self.mempool.remove_transactions(transactions_to_remove).await;
-					self.import_notification_sink.clean_notified_items(&transactions_to_remove);
-				}
-
-				self.handle_new_block(tree_route).await;
-				// 4. Finalize
+				let target = tree_route.common_block().clone();
+				let minimal_route = TreeRoute::new(vec![target], 0).unwrap();
+				self.handle_new_block(&minimal_route).await;
 				self.handle_finalized(hash, &[]).await;
+
+				debug!(
+					target: LOG_TARGET,
+					?hash,
+					?tree_route,
+					"handle_revert: complete"
+				);
 			},
 		}
 
