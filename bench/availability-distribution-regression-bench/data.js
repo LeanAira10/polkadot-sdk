@@ -1,62 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764170710961,
+  "lastUpdate": 1764173266230,
   "repoUrl": "https://github.com/paritytech/polkadot-sdk",
   "entries": {
     "availability-distribution-regression-bench": [
-      {
-        "commit": {
-          "author": {
-            "email": "egor@parity.io",
-            "name": "Egor_P",
-            "username": "EgorPopelyaev"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "10683dd397d3db7429f3f95fdb70b1ffc7c38f35",
-          "message": "[Backport] Version bumps and prdocs reordering from the stable2503-4 and stable2503-5 releases (#8706)\n\nThis PR backports regular node version bumps and prdocs reordering from\nthe stable2503 branch back to master",
-          "timestamp": "2025-05-30T09:43:39Z",
-          "tree_id": "54b218a4d02c865b8b9f0781e5a97c1e8e856e6d",
-          "url": "https://github.com/paritytech/polkadot-sdk/commit/10683dd397d3db7429f3f95fdb70b1ffc7c38f35"
-        },
-        "date": 1748601944406,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "Received from peers",
-            "value": 433.3333333333332,
-            "unit": "KiB"
-          },
-          {
-            "name": "Sent to peers",
-            "value": 18481.666666666653,
-            "unit": "KiB"
-          },
-          {
-            "name": "availability-distribution",
-            "value": 0.012807684233333333,
-            "unit": "seconds"
-          },
-          {
-            "name": "test-environment",
-            "value": 0.008874469786666766,
-            "unit": "seconds"
-          },
-          {
-            "name": "availability-store",
-            "value": 0.1563682361733333,
-            "unit": "seconds"
-          },
-          {
-            "name": "bitfield-distribution",
-            "value": 0.022426588100000006,
-            "unit": "seconds"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -26999,6 +26945,60 @@ window.BENCHMARK_DATA = {
           {
             "name": "bitfield-distribution",
             "value": 0.022661735519999997,
+            "unit": "seconds"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "117115317+lrubasze@users.noreply.github.com",
+            "name": "Lukasz Rubaszewski",
+            "username": "lrubasze"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "08a4a548cb1f5a817d319725f9c1420a7bbe1d3e",
+          "message": "Disable polkavm logging in `pallet-revive` (#10385)\n\nThis PR adds configurable control over PolkaVM logging in\n`pallet-revive` to address performance degradation (details:\nhttps://github.com/paritytech/polkadot-sdk/issues/8760#issuecomment-3499548774)\n\n- Upgrades PolkaVM to v0.30.0 which provides\n`set_imperfect_logger_filtering_workaround()`\n- Adds `pvm_logs` flag to `DebugSettings` to control PolkaVM interpreter\nlogging\n- Disables PolkaVM logs by default (when `pvm_logs=false`), enabling\nthem only when explicitly configured\n- Fixes performance issue where excessive PolkaVM logging was impacting\nblock proposal times\n\nThe logging can be re-enabled via debug settings when needed for\ntroubleshooting.\n\nAdditionally:\n- PolkaVM has been bumped globally across whole codebase.\n\n---------\n\nCo-authored-by: cmd[bot] <41898282+github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-11-26T14:51:51Z",
+          "tree_id": "9cc449884442043a3546c974f7fc16f9ee2d99aa",
+          "url": "https://github.com/paritytech/polkadot-sdk/commit/08a4a548cb1f5a817d319725f9c1420a7bbe1d3e"
+        },
+        "date": 1764173241381,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Received from peers",
+            "value": 433.3333333333332,
+            "unit": "KiB"
+          },
+          {
+            "name": "Sent to peers",
+            "value": 18481.666666666653,
+            "unit": "KiB"
+          },
+          {
+            "name": "bitfield-distribution",
+            "value": 0.022532108560000003,
+            "unit": "seconds"
+          },
+          {
+            "name": "test-environment",
+            "value": 0.0074811262399999846,
+            "unit": "seconds"
+          },
+          {
+            "name": "availability-distribution",
+            "value": 0.013024365360000003,
+            "unit": "seconds"
+          },
+          {
+            "name": "availability-store",
+            "value": 0.15815116668000004,
             "unit": "seconds"
           }
         ]
