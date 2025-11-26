@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764170744964,
+  "lastUpdate": 1764173300786,
   "repoUrl": "https://github.com/paritytech/polkadot-sdk",
   "entries": {
     "approval-voting-regression-bench": [
-      {
-        "commit": {
-          "author": {
-            "email": "paolo@parity.io",
-            "name": "Paolo La Camera",
-            "username": "sigurpol"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e6b6769d1c524fd55f51bb55fab53dc389dc6e26",
-          "message": "Staking (EPMB): update the semantics of elect() and Phase::Extract(N) (#8633)\n\n- Make `elect()` in `election-provider-multi-block` (`EPMB`) the sole\nresponsible for `Phase::Export` transitions:\n- before this change, the handling was split between EPMB's\n`on_initialize()/next()` and `elect()` (e.g. as triggered by\nstaking-async's `on_initialize()`).\n- Update the semantics of elect(N) and of the inner value of Export(N):\n- calling `elect(N)` means now that we are expecting to serve result for\npage N and to transition to `Phase::Export(N-1)` if N > 0 or to\n`Phase::Off` if N == 0.\n\nFor a 4-page election, the flow is the following:\n\n1. **elect(3):**\n   - If in `Done`, serve result for page 3, transition to `Export(2)`.\n2. **elect(2):**\n- If in `Export(2)`, serve result for page 2, transition to `Export(1)`.\n3. **elect(1):**\n- If in `Export(1)`, serve result for page 1, transition to `Export(0)`.\n4. **elect(0):**\n   - If in `Export(0)`, serve result for page 0, transition to `Off`.\n\nThis change fixes the issue for which we were handling multiple\ntransactions in the same block or not depending on the order of\ninitialization of the pallets. E.g. if `staking-async` was initialized\nbefore `EPMB`, in block `X`:\n- when in `Phase::Done`, calling `elect(N)` as coming for\n`staking-async`'s `on_initialize()`, forced the transition `Done` ->\n`Export(N)`\n- the following `next()` triggered by `EPMB`'s `on_initialize()` forced\nthe transition still within block X from `Export(N)` to `Export(N-1)`\n\nThis is fixed now since the transitions around `export` phase are fully\nencapsulated into `EPMB`'s `elect()` function.",
-          "timestamp": "2025-05-30T06:48:43Z",
-          "tree_id": "22ffc7f19c2cd9e39aa526e62cb3378af62f58e4",
-          "url": "https://github.com/paritytech/polkadot-sdk/commit/e6b6769d1c524fd55f51bb55fab53dc389dc6e26"
-        },
-        "date": 1748591698134,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "Sent to peers",
-            "value": 63624.65,
-            "unit": "KiB"
-          },
-          {
-            "name": "Received from peers",
-            "value": 52941.7,
-            "unit": "KiB"
-          },
-          {
-            "name": "approval-voting-parallel/approval-voting-parallel-subsystem",
-            "value": 0.4621425646500092,
-            "unit": "seconds"
-          },
-          {
-            "name": "approval-voting-parallel/approval-voting-gather-signatures",
-            "value": 0.005578599729999999,
-            "unit": "seconds"
-          },
-          {
-            "name": "approval-voting-parallel",
-            "value": 11.880821000800005,
-            "unit": "seconds"
-          },
-          {
-            "name": "approval-voting-parallel/approval-voting-parallel-0",
-            "value": 2.3870351493199995,
-            "unit": "seconds"
-          },
-          {
-            "name": "approval-voting-parallel/approval-voting-parallel-3",
-            "value": 2.377296375160001,
-            "unit": "seconds"
-          },
-          {
-            "name": "approval-voting/test-environment",
-            "value": 0.0000185386,
-            "unit": "seconds"
-          },
-          {
-            "name": "approval-distribution",
-            "value": 0.000019178859999999998,
-            "unit": "seconds"
-          },
-          {
-            "name": "approval-distribution/test-environment",
-            "value": 0.000019178859999999998,
-            "unit": "seconds"
-          },
-          {
-            "name": "approval-voting",
-            "value": 0.0000185386,
-            "unit": "seconds"
-          },
-          {
-            "name": "approval-voting-parallel/approval-voting-parallel-2",
-            "value": 2.4126323224300004,
-            "unit": "seconds"
-          },
-          {
-            "name": "approval-voting-parallel/approval-voting-parallel-db",
-            "value": 1.8669332188299972,
-            "unit": "seconds"
-          },
-          {
-            "name": "approval-voting-parallel/approval-voting-parallel-1",
-            "value": 2.3692027706799994,
-            "unit": "seconds"
-          },
-          {
-            "name": "test-environment",
-            "value": 3.369106389172509,
-            "unit": "seconds"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -49499,6 +49400,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "approval-distribution",
             "value": 0.000021022590000000004,
+            "unit": "seconds"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "117115317+lrubasze@users.noreply.github.com",
+            "name": "Lukasz Rubaszewski",
+            "username": "lrubasze"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "08a4a548cb1f5a817d319725f9c1420a7bbe1d3e",
+          "message": "Disable polkavm logging in `pallet-revive` (#10385)\n\nThis PR adds configurable control over PolkaVM logging in\n`pallet-revive` to address performance degradation (details:\nhttps://github.com/paritytech/polkadot-sdk/issues/8760#issuecomment-3499548774)\n\n- Upgrades PolkaVM to v0.30.0 which provides\n`set_imperfect_logger_filtering_workaround()`\n- Adds `pvm_logs` flag to `DebugSettings` to control PolkaVM interpreter\nlogging\n- Disables PolkaVM logs by default (when `pvm_logs=false`), enabling\nthem only when explicitly configured\n- Fixes performance issue where excessive PolkaVM logging was impacting\nblock proposal times\n\nThe logging can be re-enabled via debug settings when needed for\ntroubleshooting.\n\nAdditionally:\n- PolkaVM has been bumped globally across whole codebase.\n\n---------\n\nCo-authored-by: cmd[bot] <41898282+github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-11-26T14:51:51Z",
+          "tree_id": "9cc449884442043a3546c974f7fc16f9ee2d99aa",
+          "url": "https://github.com/paritytech/polkadot-sdk/commit/08a4a548cb1f5a817d319725f9c1420a7bbe1d3e"
+        },
+        "date": 1764173275261,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Sent to peers",
+            "value": 63627.5,
+            "unit": "KiB"
+          },
+          {
+            "name": "Received from peers",
+            "value": 52941.90000000001,
+            "unit": "KiB"
+          },
+          {
+            "name": "approval-voting-parallel",
+            "value": 12.669202012189992,
+            "unit": "seconds"
+          },
+          {
+            "name": "approval-voting-parallel/approval-voting-parallel-0",
+            "value": 2.547130224460001,
+            "unit": "seconds"
+          },
+          {
+            "name": "approval-voting-parallel/approval-voting-parallel-1",
+            "value": 2.5455823902100003,
+            "unit": "seconds"
+          },
+          {
+            "name": "approval-voting-parallel/approval-voting-parallel-db",
+            "value": 2.0182040439599898,
+            "unit": "seconds"
+          },
+          {
+            "name": "approval-voting-parallel/approval-voting-parallel-subsystem",
+            "value": 0.4317987912299971,
+            "unit": "seconds"
+          },
+          {
+            "name": "approval-voting",
+            "value": 0.000018582729999999996,
+            "unit": "seconds"
+          },
+          {
+            "name": "approval-voting-parallel/approval-voting-parallel-2",
+            "value": 2.5806862113000006,
+            "unit": "seconds"
+          },
+          {
+            "name": "approval-voting-parallel/approval-voting-parallel-3",
+            "value": 2.539734963110001,
+            "unit": "seconds"
+          },
+          {
+            "name": "test-environment",
+            "value": 2.7637901846411355,
+            "unit": "seconds"
+          },
+          {
+            "name": "approval-distribution/test-environment",
+            "value": 0.000021321040000000004,
+            "unit": "seconds"
+          },
+          {
+            "name": "approval-voting/test-environment",
+            "value": 0.000018582729999999996,
+            "unit": "seconds"
+          },
+          {
+            "name": "approval-distribution",
+            "value": 0.000021321040000000004,
+            "unit": "seconds"
+          },
+          {
+            "name": "approval-voting-parallel/approval-voting-gather-signatures",
+            "value": 0.006065387920000005,
             "unit": "seconds"
           }
         ]
