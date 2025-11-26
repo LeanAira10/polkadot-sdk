@@ -1,52 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764170676527,
+  "lastUpdate": 1764173232654,
   "repoUrl": "https://github.com/paritytech/polkadot-sdk",
   "entries": {
     "availability-recovery-regression-bench": [
-      {
-        "commit": {
-          "author": {
-            "email": "paolo@parity.io",
-            "name": "Paolo La Camera",
-            "username": "sigurpol"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "3d0c061d5111723cedab73b09e52ddc052dd00a7",
-          "message": "Staking (EPMB): Add defensive error handling to voter snapshot creation and solution verification (#8687)\n\n- Refactor snapshot creation to emit events and triggers defensive panic\non failure\n- Replace unwrap() with defensive_unwrap_or(u32::MAX) to ensure solution\nfails verification gracefully when desired_targets is unavailable rather\nthan panicking.\n- Add error events for failed target and voter snapshots\n\nClose #8685.",
-          "timestamp": "2025-05-30T15:21:59Z",
-          "tree_id": "d462350a619bef86b55b5f3eca050a1d6a1f7849",
-          "url": "https://github.com/paritytech/polkadot-sdk/commit/3d0c061d5111723cedab73b09e52ddc052dd00a7"
-        },
-        "date": 1748622223079,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "Received from peers",
-            "value": 307203,
-            "unit": "KiB"
-          },
-          {
-            "name": "Sent to peers",
-            "value": 1.6666666666666665,
-            "unit": "KiB"
-          },
-          {
-            "name": "availability-recovery",
-            "value": 11.377208690466668,
-            "unit": "seconds"
-          },
-          {
-            "name": "test-environment",
-            "value": 0.20061238823333333,
-            "unit": "seconds"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -21999,6 +21955,50 @@ window.BENCHMARK_DATA = {
           {
             "name": "availability-recovery",
             "value": 11.431658042566667,
+            "unit": "seconds"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "117115317+lrubasze@users.noreply.github.com",
+            "name": "Lukasz Rubaszewski",
+            "username": "lrubasze"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "08a4a548cb1f5a817d319725f9c1420a7bbe1d3e",
+          "message": "Disable polkavm logging in `pallet-revive` (#10385)\n\nThis PR adds configurable control over PolkaVM logging in\n`pallet-revive` to address performance degradation (details:\nhttps://github.com/paritytech/polkadot-sdk/issues/8760#issuecomment-3499548774)\n\n- Upgrades PolkaVM to v0.30.0 which provides\n`set_imperfect_logger_filtering_workaround()`\n- Adds `pvm_logs` flag to `DebugSettings` to control PolkaVM interpreter\nlogging\n- Disables PolkaVM logs by default (when `pvm_logs=false`), enabling\nthem only when explicitly configured\n- Fixes performance issue where excessive PolkaVM logging was impacting\nblock proposal times\n\nThe logging can be re-enabled via debug settings when needed for\ntroubleshooting.\n\nAdditionally:\n- PolkaVM has been bumped globally across whole codebase.\n\n---------\n\nCo-authored-by: cmd[bot] <41898282+github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-11-26T14:51:51Z",
+          "tree_id": "9cc449884442043a3546c974f7fc16f9ee2d99aa",
+          "url": "https://github.com/paritytech/polkadot-sdk/commit/08a4a548cb1f5a817d319725f9c1420a7bbe1d3e"
+        },
+        "date": 1764173207405,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Received from peers",
+            "value": 307203,
+            "unit": "KiB"
+          },
+          {
+            "name": "Sent to peers",
+            "value": 1.6666666666666665,
+            "unit": "KiB"
+          },
+          {
+            "name": "availability-recovery",
+            "value": 11.323704409466666,
+            "unit": "seconds"
+          },
+          {
+            "name": "test-environment",
+            "value": 0.19862704693333333,
             "unit": "seconds"
           }
         ]
