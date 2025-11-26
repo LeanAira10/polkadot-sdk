@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764170812803,
+  "lastUpdate": 1764173369409,
   "repoUrl": "https://github.com/paritytech/polkadot-sdk",
   "entries": {
     "dispute-coordinator-regression-bench": [
@@ -19011,6 +19011,55 @@ window.BENCHMARK_DATA = {
           {
             "name": "dispute-coordinator",
             "value": 0.0026672416400000004,
+            "unit": "seconds"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "117115317+lrubasze@users.noreply.github.com",
+            "name": "Lukasz Rubaszewski",
+            "username": "lrubasze"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "08a4a548cb1f5a817d319725f9c1420a7bbe1d3e",
+          "message": "Disable polkavm logging in `pallet-revive` (#10385)\n\nThis PR adds configurable control over PolkaVM logging in\n`pallet-revive` to address performance degradation (details:\nhttps://github.com/paritytech/polkadot-sdk/issues/8760#issuecomment-3499548774)\n\n- Upgrades PolkaVM to v0.30.0 which provides\n`set_imperfect_logger_filtering_workaround()`\n- Adds `pvm_logs` flag to `DebugSettings` to control PolkaVM interpreter\nlogging\n- Disables PolkaVM logs by default (when `pvm_logs=false`), enabling\nthem only when explicitly configured\n- Fixes performance issue where excessive PolkaVM logging was impacting\nblock proposal times\n\nThe logging can be re-enabled via debug settings when needed for\ntroubleshooting.\n\nAdditionally:\n- PolkaVM has been bumped globally across whole codebase.\n\n---------\n\nCo-authored-by: cmd[bot] <41898282+github-actions[bot]@users.noreply.github.com>",
+          "timestamp": "2025-11-26T14:51:51Z",
+          "tree_id": "9cc449884442043a3546c974f7fc16f9ee2d99aa",
+          "url": "https://github.com/paritytech/polkadot-sdk/commit/08a4a548cb1f5a817d319725f9c1420a7bbe1d3e"
+        },
+        "date": 1764173343843,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "Received from peers",
+            "value": 23.800000000000004,
+            "unit": "KiB"
+          },
+          {
+            "name": "Sent to peers",
+            "value": 227.09999999999997,
+            "unit": "KiB"
+          },
+          {
+            "name": "dispute-distribution",
+            "value": 0.008818666199999988,
+            "unit": "seconds"
+          },
+          {
+            "name": "dispute-coordinator",
+            "value": 0.0027049634500000003,
+            "unit": "seconds"
+          },
+          {
+            "name": "test-environment",
+            "value": 0.005058959679999994,
             "unit": "seconds"
           }
         ]
